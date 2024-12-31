@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from phi.agent import Agent
 from phi.model.openai import OpenAIChat
 from models import  prompt
+from pydantic import BaseModel
+import yfinance as yf
 
 # Load environment variables from .env file
 load_dotenv()
@@ -47,7 +49,7 @@ analysis_project_agent = Agent(
 
 
 # 新增股票代理功能
-import yfinance as yf
+
 def stock_analysis(stock_symbol: str):
     """
     使用 Yahoo Finance API 獲取股票資訊
@@ -110,7 +112,6 @@ async def prompt(prompt: prompt):
 
 ###
 # 新增 API 端點
-from pydantic import BaseModel
 
 class StockRequest(BaseModel):
     stock_symbol: str
