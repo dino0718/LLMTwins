@@ -44,6 +44,42 @@ analysis_project_agent = Agent(
    show_tool_calls=True
 )
 
+
+
+# 新增股票代理功能
+import yfinance as yf
+def stock_analysis(stock_symbol: str):
+    """
+    使用 Yahoo Finance API 獲取股票資訊
+    """
+    try:
+        stock = yf.Ticker(stock_symbol)
+        stock_info = stock.info
+
+        current_price = stock_info.get('currentPrice', 'N/A')
+        currency = stock_info.get('currency', 'N/A')
+        recommendation = stock_info.get('recommendationKey', 'N/A')
+
+        if current_price == 'N/A':
+            return f"無法獲取股票代碼 {stock_symbol} 的資訊，請檢查股票代碼。"
+
+        return (
+            f"股票代碼: {stock_symbol}\n"
+            f"當前價格: {current_price} {currency}\n"
+            f"建議操作: {recommendation}"
+        )
+    except Exception as e:
+        return f"發生錯誤: {str(e)}"
+
+# 新增 Stock Agent
+stock_agent = Agent(
+    name="Stock Analysis Agent",
+    role="股票分析",
+    tools=[stock_analysis],
+    show_tool_calls=True
+)
+
+
 # Create agent team
 agent_team = Agent(
     model=OpenAIChat(
@@ -52,7 +88,7 @@ agent_team = Agent(
         timeout = 30
     ),
    name="Agent Team",
-   team=[self_intro_agent, analysis_project_agent],
+   team=[self_intro_agent, analysis_project_agent,stock_agent],
    add_history_to_messages=True,
    num_history_responses=3,
    show_tool_calls=False,
@@ -68,10 +104,18 @@ async def prompt(prompt: prompt):
         if message.role == "assistant" and message.content:
             assistant_content = message.content
 
-<<<<<<< HEAD
-    return {"result": True, "message": assistant_content}
-=======
     return {"result": True, "message": assistant_content}
 
 
->>>>>>> e86cc33 (首次提交：修正權限錯誤與設定使用者資訊)
+
+###
+# 新增 API 端點
+from pydantic import BaseModel
+
+class StockRequest(BaseModel):
+    stock_symbol: str
+
+@app.post("/stock")
+async def stock_prompt(request: StockRequest):
+    response = stock_agent.run(request.stock_symbol, stream=False)
+    return {"result": True, "message": response}
