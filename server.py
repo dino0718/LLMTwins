@@ -68,4 +68,10 @@ async def prompt(prompt: prompt):
         if message.role == "assistant" and message.content:
             assistant_content = message.content
 
+<<<<<<< HEAD
     return {"result": True, "message": assistant_content}
+=======
+    return {"result": True, "message": assistant_content}
+
+
+>>>>>>> e86cc33 (首次提交：修正權限錯誤與設定使用者資訊)

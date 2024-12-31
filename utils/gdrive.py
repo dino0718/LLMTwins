@@ -22,4 +22,12 @@ def list_files_in_drive_folder(service, folder_id):
         for item in items:
             list_file_id.append({"name":item['name'], "file_id":item['id']})
 
+<<<<<<< HEAD
     return list_file_id
+=======
+    return list_file_id
+
+service = initialize_drive_service("credentials.json")
+files = list_files_in_drive_folder(service, "<folder_id>")
+print(files)
+>>>>>>> e86cc33 (首次提交：修正權限錯誤與設定使用者資訊)
