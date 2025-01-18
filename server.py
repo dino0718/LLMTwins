@@ -1,71 +1,41 @@
-from fastapi import FastAPI
-from dotenv import load_dotenv
-from fastapi.middleware.cors import CORSMiddleware
-from phi.agent import Agent
-from phi.model.openai import OpenAIChat
-from models import  prompt
+import os
+from fastapi import FastAPI, HTTPException, Request
+from agents.accounting_agent.handler import handle_accounting_request
+from agents.calendar_agent.handler import create_google_calendar_event
+from agents.weather_agent.handler import get_weather_info
 
-# Load environment variables from .env file
-load_dotenv()
 app = FastAPI()
 
-origins = ["*"]
+# Accounting Agent Route
+@app.post("/api/accounting")
+async def accounting_agent(request: Request):
+    data = await request.json()
+    response = handle_accounting_request(data)
+    return response
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Calendar Agent Route
+@app.post("/api/calendar")
+async def calendar_agent(request: Request):
+    data = await request.json()
+    try:
+        response = create_google_calendar_event(data)
+        return response
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"請求錯誤: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"伺服器錯誤: {str(e)}")
 
-# Health Check
-@app.get("/health")
-async def health():
-    return {"result": "Healthy Server!"}
+@app.post("/api/weather")
+async def weather_agent(request: Request):
+    data = await request.json()
+    try:
+        response = get_weather_info(data)
+        if "error" in response:
+            raise HTTPException(status_code=400, detail=response["error"])
+        return response
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"伺服器錯誤: {str(e)}")
 
-def self_introduction():
-    return "我的名字叫做小明，我是一個 AI 聊天機器人，我可以幫助你進行自我介紹。"
-
-self_intro_agent = Agent(
-   name="Self-introduction Agent",
-   role="自我介紹",
-   tools=[self_introduction],
-   show_tool_calls=True
-)
-
-def analyse_project():
-    return "我是專案分析 Agent，我可以幫助你分析專案。"
-
-analysis_project_agent = Agent(
-   name="Project analysis Agent",
-   role= "專案分析",
-   tools=[analyse_project],
-   show_tool_calls=True
-)
-
-# Create agent team
-agent_team = Agent(
-    model=OpenAIChat(
-        id = "gpt-4o",
-        temperature = 1,
-        timeout = 30
-    ),
-   name="Agent Team",
-   team=[self_intro_agent, analysis_project_agent],
-   add_history_to_messages=True,
-   num_history_responses=3,
-   show_tool_calls=False,
-   tool_call_limit=1
-)
-
-@app.post("/prompt")
-async def prompt(prompt: prompt):
-    response = agent_team.run(f"{prompt.message}", stream=False)
-    # 尋找 assistant role 的最後一條訊息
-    assistant_content = None
-    for message in response.messages:
-        if message.role == "assistant" and message.content:
-            assistant_content = message.content
-
-    return {"result": True, "message": assistant_content}
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=5000)
