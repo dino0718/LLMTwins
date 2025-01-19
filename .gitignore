@@ -165,5 +165,4 @@ callbacks/
 # agents/
 
 #tokens
-credentials.json
-token.json
+tokens/
