@@ -6,19 +6,24 @@ import os
 from datetime import datetime, timezone
 import re
 
-SCOPES = ['https://www.googleapis.com/auth/calendar']
+SCOPES = ["https://www.googleapis.com/auth/calendar"]
+
 
 def authenticate_google_calendar():
     """Authenticate with Google Calendar API."""
     creds = None
-    if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+    token_path = "/home/ntc/dino/LLMTwins/tokens/token.json"
+    credentials_path = "/home/ntc/dino/LLMTwins/tokens/credentials.json"
+
+    if os.path.exists(token_path):
+        creds = Credentials.from_authorized_user_file(token_path, SCOPES)
     if not creds or not creds.valid:
-        flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
+        flow = InstalledAppFlow.from_client_secrets_file(credentials_path, SCOPES)
         creds = flow.run_local_server(port=0)
-        with open('token.json', 'w') as token:
+        with open(token_path, "w") as token:
             token.write(creds.to_json())
     return creds
+
 
 def parse_user_input(query):
     """Use LLM to parse user input into structured data."""
@@ -42,10 +47,11 @@ def parse_user_input(query):
         return {"error": f"無法解析輸入: {e}"}
     return parsed_data
 
+
 def create_google_calendar_event(data):
     """Create an event in Google Calendar based on parsed user input."""
     creds = authenticate_google_calendar()
-    service = build('calendar', 'v3', credentials=creds)
+    service = build("calendar", "v3", credentials=creds)
 
     # Parse user input
     query = data.get("query", "")
@@ -58,28 +64,33 @@ def create_google_calendar_event(data):
     parsed_data = validate_and_correct_date(parsed_data)
 
     # Validate ISO format
-    if not validate_iso_format(parsed_data["start_time"]) or not validate_iso_format(parsed_data["end_time"]):
+    if not validate_iso_format(parsed_data["start_time"]) or not validate_iso_format(
+        parsed_data["end_time"]
+    ):
         return {"error": "時間格式錯誤，請檢查輸入格式。"}
 
     # Prepare event data
     event = {
-        'summary': parsed_data["event_name"],
-        'start': {
-            'dateTime': parsed_data["start_time"],
-            'timeZone': parsed_data["timezone"],
+        "summary": parsed_data["event_name"],
+        "start": {
+            "dateTime": parsed_data["start_time"],
+            "timeZone": parsed_data["timezone"],
         },
-        'end': {
-            'dateTime': parsed_data["end_time"],
-            'timeZone': parsed_data["timezone"],
+        "end": {
+            "dateTime": parsed_data["end_time"],
+            "timeZone": parsed_data["timezone"],
         },
     }
 
     # Create event
     try:
-        created_event = service.events().insert(calendarId='primary', body=event).execute()
+        created_event = (
+            service.events().insert(calendarId="primary", body=event).execute()
+        )
         return {"response": f"事件已建立: {created_event.get('htmlLink')}"}
     except Exception as e:
         return {"error": f"Google Calendar API 發送失敗: {e}"}
+
 
 def validate_iso_format(time_string):
     """Validate if a given string is in ISO 8601 datetime format."""
