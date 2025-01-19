@@ -1,17 +1,24 @@
 import os
 from fastapi import FastAPI, HTTPException, Request
-from agents.accounting_agent.handler import handle_accounting_request
+from agents.accounting_agent.handler import add_expense
 from agents.calendar_agent.handler import create_google_calendar_event
 from agents.weather_agent.handler import handle_weather_request
 
 app = FastAPI()
 
+
 # Accounting Agent Route
 @app.post("/api/accounting")
 async def accounting_agent(request: Request):
     data = await request.json()
-    response = handle_accounting_request(data)
-    return response
+    try:
+        response = add_expense(data)
+        return response
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"請求錯誤: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"伺服器錯誤: {str(e)}")
+
 
 # Calendar Agent Route
 @app.post("/api/calendar")
@@ -25,6 +32,7 @@ async def calendar_agent(request: Request):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"伺服器錯誤: {str(e)}")
 
+
 @app.post("/api/weather")
 async def weather_agent(request: Request):
     data = await request.json()
@@ -36,6 +44,8 @@ async def weather_agent(request: Request):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"伺服器錯誤: {str(e)}")
 
+
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=5000)

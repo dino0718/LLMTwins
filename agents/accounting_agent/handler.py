@@ -1,20 +1,30 @@
-from langchain_community.llms import OpenAI
-import os
-from dotenv import load_dotenv
-import openai
+from googleapiclient.discovery import build
+from google.oauth2.credentials import Credentials
 
-# 載入 .env 檔案
-load_dotenv()
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+SHEET_ID = "13TmNPh4RsIPtZa7SqsQFkyi7vGxLgBhRSaOq34YedAI"  # 替換為你的 Sheet ID
 
-# 讀取 OpenAI API 金鑰
-openai.api_key = os.getenv('OPENAI_API_KEY')
 
-def handle_accounting_request(data):
-    """Handles accounting-related tasks."""
-    query = data.get("query", "")
-    if not query:
-        return {"error": "缺少 query 參數"}
+def get_sheets_service():
+    """初始化 Google Sheets API"""
+    creds = Credentials.from_authorized_user_file(
+        "/home/ntc/dino/LLMTwins/tokens/token.json", SCOPES
+    )
+    return build("sheets", "v4", credentials=creds)
 
-    llm = OpenAI(temperature=0.7)
-    response = llm.generate(prompts=[f"記帳問題: {query}"])
-    return {"response": response.generations[0][0].text.strip()}
+
+def add_expense(query):
+    """新增記帳條目到 Google Sheets"""
+    from .parser import parse_expense  # 延遲導入
+
+    data = parse_expense(query)
+    row = [[data["date"], data["category"], data["amount"], data["note"]]]
+
+    service = get_sheets_service()
+    service.spreadsheets().values().append(
+        spreadsheetId=SHEET_ID,
+        range="A1:D1",
+        valueInputOption="USER_ENTERED",
+        body={"values": row},
+    ).execute()
+    return {"response": f"成功新增記帳條目：{data}"}

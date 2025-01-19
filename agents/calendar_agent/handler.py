@@ -12,15 +12,12 @@ SCOPES = ["https://www.googleapis.com/auth/calendar"]
 def authenticate_google_calendar():
     """Authenticate with Google Calendar API."""
     creds = None
-    token_path = "/home/ntc/dino/LLMTwins/tokens/token.json"
-    credentials_path = "/home/ntc/dino/LLMTwins/tokens/credentials.json"
-
-    if os.path.exists(token_path):
-        creds = Credentials.from_authorized_user_file(token_path, SCOPES)
+    if os.path.exists("token.json"):
+        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
     if not creds or not creds.valid:
-        flow = InstalledAppFlow.from_client_secrets_file(credentials_path, SCOPES)
+        flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
         creds = flow.run_local_server(port=0)
-        with open(token_path, "w") as token:
+        with open("token.json", "w") as token:
             token.write(creds.to_json())
     return creds
 
