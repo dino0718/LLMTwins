@@ -5,6 +5,7 @@ import os
 from dotenv import load_dotenv
 import logging
 from datetime import datetime
+
 load_dotenv()
 
 # 環境變數和 API 配置
@@ -37,7 +38,11 @@ def parse_weather_query(query):
         return parsed_data
     except Exception as e:
         logging.error(f"解析自然語言失敗: {e}")
-        return {"location": "台北", "datetime": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+        return {
+            "location": "台北",
+            "datetime": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        }
+
 
 def normalize_datetime(raw_datetime):
     """Normalize raw datetime from LLM to standard format."""
@@ -45,11 +50,13 @@ def normalize_datetime(raw_datetime):
         # 自然語言格式（例如 "1/24 下午3點"）轉換成標準時間
         if "下午" in raw_datetime or "上午" in raw_datetime:
             raw_datetime = raw_datetime.replace("下午", "PM").replace("上午", "AM")
-        return datetime.strptime(raw_datetime, "%m/%d %p%I點").strftime("%Y-%m-%d %H:%M:%S")
+        return datetime.strptime(raw_datetime, "%m/%d %p%I點").strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
     except Exception as e:
         logging.error(f"日期格式解析失敗: {e}")
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
+
 
 def translate_location(location):
     """將地點名稱從繁體中文翻譯為英文。"""
@@ -69,8 +76,8 @@ def fetch_weather_forecast(location, target_date):
                 "q": location,
                 "appid": OPENWEATHER_API_KEY,
                 "units": "metric",
-                "lang": "zh_tw"
-            }
+                "lang": "zh_tw",
+            },
         )
         response.raise_for_status()
         forecast_data = response.json()
@@ -81,7 +88,9 @@ def fetch_weather_forecast(location, target_date):
         # 查找與目標時間最接近的預報
         closest_forecast = min(
             forecast_data["list"],
-            key=lambda x: abs(datetime.strptime(x["dt_txt"], "%Y-%m-%d %H:%M:%S") - target_datetime)
+            key=lambda x: abs(
+                datetime.strptime(x["dt_txt"], "%Y-%m-%d %H:%M:%S") - target_datetime
+            ),
         )
 
         return closest_forecast
@@ -93,7 +102,6 @@ def fetch_weather_forecast(location, target_date):
         return {"error": "天氣數據解析失敗"}
 
 
-
 def generate_weather_response(query, weather_data):
     """使用 LLM 生成自然語言天氣回覆。"""
     llm = OpenAI(temperature=0.7)
@@ -103,14 +111,31 @@ def generate_weather_response(query, weather_data):
     天氣數據: {weather_data}
 
     請基於這些資訊生成簡潔且自然的回覆並在最後給使用者相對應天氣的提醒，例如:
-    - "台北今天多雲，氣溫約25°C，濕度為70%，有幾趴的機率下雨。"
-    - "明天台中的天氣是晴朗，最高溫為30°C，最低溫為22°C，有幾趴的機率下雨。"
+    - "台北今天多雲，氣溫約25°C，濕度為70%。"
+    - "明天台中的天氣是晴朗，最高溫為30°C，最低溫為22°C。"
     """
     response = llm.generate(prompts=[prompt])
     return response.generations[0][0].text.strip()
 
 
 def handle_weather_request(data):
+    """
+    Handle user weather queries with time-specific forecasts.
+
+    處理用戶的天氣查詢，提供特定時間的天氣預報。
+
+    Args:
+        data (dict): 包含用戶查詢的字典，應該包含 "query" 鍵。
+
+    Returns:
+        dict: 包含天氣回覆或錯誤信息的字典。
+        - 如果查詢成功，返回格式如下：
+            {
+                "response": "自然語言天氣回覆"
+        - 如果查詢失敗，返回格式如下：
+            {
+                "error": "錯誤信息"
+    """
     """Handle user weather queries with time-specific forecasts."""
     query = data.get("query", "")
     if not query:
@@ -142,9 +167,8 @@ def handle_weather_request(data):
         "forecast_time": forecast_time,  # 預報時間
         "description": description,  # 天氣描述
         "temperature": temperature,  # 氣溫
-        "humidity": humidity  # 濕度
+        "humidity": humidity,  # 濕度
     }
     # 生成自然語言天氣回覆
     response = generate_weather_response(query, weather_data)
     return {"response": response}  # 返回回覆
-
