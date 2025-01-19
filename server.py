@@ -2,7 +2,7 @@ import os
 from fastapi import FastAPI, HTTPException, Request
 from agents.accounting_agent.handler import handle_accounting_request
 from agents.calendar_agent.handler import create_google_calendar_event
-from agents.weather_agent.handler import get_weather_info
+from agents.weather_agent.handler import handle_weather_request
 
 app = FastAPI()
 
@@ -29,7 +29,7 @@ async def calendar_agent(request: Request):
 async def weather_agent(request: Request):
     data = await request.json()
     try:
-        response = get_weather_info(data)
+        response = handle_weather_request(data)
         if "error" in response:
             raise HTTPException(status_code=400, detail=response["error"])
         return response
