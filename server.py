@@ -7,42 +7,31 @@ from agents.accounting_agent.handler import handle_command
 app = FastAPI()
 
 
-# accounting agent route
-@app.post("/api/sheet/operations")
-async def sheet_operations(request: Request):
+@app.post("/api/life-assistant")
+async def unified_agent(request: Request):
     try:
         body = await request.json()
-        command = body.get("operation")
+        agent_type = body.get("agent_type")
+        command = body.get("command")
         parameters = body.get("parameters", {})
-        result = handle_command(command, parameters)
-        return {"response": result}
+
+        if agent_type == "accounting":
+            # 處理會計代理
+            result = handle_command(command, parameters)
+            return {"response": result}
+        elif agent_type == "calendar":
+            # 處理日曆代理
+            print(f"Received Calendar Request: {body}")  # 調試日誌
+            response = handle_command_calendar(command, parameters)
+            print(f"Calendar Response: {response}")  # 調試日誌
+            return response
+        elif agent_type == "weather":
+            # 處理天氣代理
+            response = handle_weather_request(body)
+            if "error" in response:
+                raise HTTPException(status_code=400, detail=response["error"])
+            return response
+        else:
+            raise HTTPException(status_code=400, detail="Invalid agent type provided.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Server error: {e}")
-
-
-# Calendar Agent Route
-@app.post("/api/calendar")
-async def calendar_route(request: Request):
-    try:
-        data = await request.json()
-        print(f"Received Calendar Request: {data}")  # 調試日誌
-        command = data.get("command")
-        parameters = data.get("parameters", {})
-        response = handle_command_calendar(command, parameters)
-        print(f"Calendar Response: {response}")  # 調試日誌
-        return response
-    except Exception as e:
-        print(f"Error in /api/calendar: {str(e)}")  # 調試日誌
-        raise HTTPException(status_code=500, detail=f"Server error: {e}")
-
-
-@app.post("/api/weather")
-async def weather_agent(request: Request):
-    data = await request.json()
-    try:
-        response = handle_weather_request(data)
-        if "error" in response:
-            raise HTTPException(status_code=400, detail=response["error"])
-        return response
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"伺服器錯誤: {str(e)}")
