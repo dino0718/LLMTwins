@@ -48,49 +48,34 @@ def query_events(parameters):
 
 
 def create_event(data):
-    """新增日曆事件，檢查時間格式一致性"""
+    """新增日曆事件"""
     try:
         ensure_valid_token()
         service = get_calendar_service()
 
-        # 確認時間格式一致
-        start_time = data.get("start_time")
-        end_time = data.get("end_time")
-
-        if not start_time or not end_time:
-            return {"error": "start_time and end_time are required"}
-
-        is_datetime_format = "T" in start_time and "T" in end_time
-        is_date_format = "T" not in start_time and "T" not in end_time
-
-        if not (is_datetime_format or is_date_format):
-            return {
-                "error": "start_time and end_time must either both be date or both be dateTime"
-            }
-
-        # 創建事件
+        # 構建事件資料
         event = {
             "summary": data.get("summary", "未命名事件"),
             "start": {
-                "dateTime": start_time if is_datetime_format else None,
-                "date": start_time if is_date_format else None,
+                "dateTime": data.get("start_time"),
                 "timeZone": data.get("timezone", "Asia/Taipei"),
             },
             "end": {
-                "dateTime": end_time if is_datetime_format else None,
-                "date": end_time if is_date_format else None,
+                "dateTime": data.get("end_time"),
                 "timeZone": data.get("timezone", "Asia/Taipei"),
             },
         }
 
+        # 打印事件數據
+        print("發送的事件資料：", event)
+
+        # 發送到 Google Calendar
         created_event = (
             service.events().insert(calendarId="primary", body=event).execute()
         )
         return {"response": f"事件已建立: {created_event.get('htmlLink')}"}
-    except HttpError as error:
-        return {"error": f"Google Calendar API Error: {error}"}
     except Exception as e:
-        return {"error": f"Unexpected error: {str(e)}"}
+        return {"error": f"建立事件失敗: {str(e)}"}
 
 
 def update_event(parameters):
@@ -144,6 +129,36 @@ def delete_event(parameters):
         return {"error": f"Google Calendar API Error: {error}"}
     except Exception as e:
         return {"error": f"Unexpected error: {str(e)}"}
+
+
+def find_event_id(summary, start_time, end_time):
+    """根據標題和時間查詢事件，返回 event_id"""
+    try:
+        ensure_valid_token()
+        service = get_calendar_service()
+
+        # 查詢事件列表
+        events_result = (
+            service.events()
+            .list(
+                calendarId="primary",
+                timeMin=start_time,
+                timeMax=end_time,
+                singleEvents=True,
+                orderBy="startTime",
+            )
+            .execute()
+        )
+        events = events_result.get("items", [])
+
+        # 查找匹配的事件
+        for event in events:
+            if event.get("summary") == summary:
+                return event.get("id")
+        return None  # 未找到匹配的事件
+    except Exception as e:
+        print(f"查詢事件失敗: {e}")
+        return None
 
 
 def handle_command_calendar(command, parameters):
